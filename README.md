@@ -1,497 +1,62 @@
-﻿# 🏫 StudyFlow
+# StudyFlow — Vivek's customized fork
 
-A full-stack application for planning study routines, managing subjects, and tracking student progress with a React frontend and FastAPI backend.
+A study-planning platform with a React frontend and FastAPI backend. This repository is a customized fork of [shreyas5080/studyflow](https://github.com/shreyas5080/studyflow), which is released under the MIT License. The upstream LICENSE file is retained; see **My changes** below for additions in this fork.
 
-![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green)
-![React](https://img.shields.io/badge/React-Frontend-blue)
-![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue)
-![Redis](https://img.shields.io/badge/Redis-OTP-red)
+## Stack
 
-## 📋 Project Overview
+- **Frontend:** React 19, Vite, React Router
+- **Backend:** FastAPI, SQLAlchemy, Pydantic
+- **Data and services:** PostgreSQL, Redis (OTP storage), Docker Compose
+- **AI timetable generation:** optional external model credentials configured by the upstream application
 
-This repository contains:
-- **Backend**: FastAPI REST API with SQLAlchemy models
-- **Frontend**: React + Vite application
-- **Database**: PostgreSQL
-- **OTP stroage**: Redis for one-time password verification
+## Current capabilities
 
-The app supports user registration, login, protected dashboard access, and subject CRUD operations.
+- Account registration, email OTP verification, and JWT login
+- Subject and syllabus-topic management
+- Study timetable generation
+- Docker Compose development environment
+- Liveness and dependency-readiness health endpoints
+- Configurable Redis connection and explicit CORS origin allowlist
 
----
+## My changes
 
-## 🏗️ Project Structure
+- Added `GET /health/live` for process liveness.
+- Added `GET /health/ready` to check PostgreSQL and Redis and return HTTP 503 when a required dependency is unavailable.
+- Replaced wildcard CORS with a configurable allowlist from `CORS_ORIGINS`.
+- Made Redis connection details configurable through `REDIS_URL`, including Docker Compose service networking.
+- Corrected the sample database URL to match the PostgreSQL service and added clearer local-versus-Docker setup notes.
 
-```
-studyflow/
-├── .github/                   # GitHub CI/CD and repositary configuration
-├── backend/                   # FastAPI backend server
-│   ├── app.py                 # Main FastAPI application entry
-│   ├── requirements.txt       # Python dependencies
-│   ├── Dockerfile             # Backend Docker image definition
-│   ├── .env                   # Environment variables
-│   ├── .env.example           # Environment example
-│   └── src/
-│       ├── AI/
-│       │   └── generate_tableAI.py
-│       ├── auth/
-│       │   ├── auth_utils.py
-│       │   ├── otp.py
-│       │   └── redis_client.py
-│       ├── database.py        # SQLAlchemy database setup
-│       ├── deps.py            # dependency injection
-│       ├── email_service.py   # OTP email sender
-│       ├── init_db.py         # database initialization script
-│       ├── models.py          # ORM models
-│       ├── schemas.py         # pydantic schemas 
-│       └── routes/
-│           ├── login.py       # login endpoint
-│           ├── studentlog.py  # student dashboard endpoint
-│           ├── topic.py       # Topic CRUD endpoints
-│           └── subjects.py    # subject CRUD endpoints
-├── docker-compose.yml         # Docker Compose for backend, frontend, PostgreSQL and Redis
-└── FrontEnd/                   # React frontend application
-    ├── Dockerfile             # Frontend Docker image definition
-    ├── package.json           # npm dependencies and scripts
-    ├── vite.config.js         # Vite config
-    ├── index.html             # HTML entry point
-    └── src/
-        ├── main.jsx          # React entry point
-        ├── App.jsx           # route definitions
-        ├── index.css         # global styles
-        ├── components/
-        │   ├── Sidebar.jsx
-        │   ├── student_nav.jsx
-        │   └── Toast.jsx
-        ├── pages/
-        │   ├── Home.jsx
-        │   ├── Login.jsx
-        │   ├── Register.jsx
-        │   └── dashboard/
-        │       ├── EditSubject.jsx
-        │       ├── Student.jsx
-        │       ├── TimeTable.jsx
-        │       └── Subject.jsx
-        ├── styles/
-        │   ├── components/
-        │   │   ├── sidebar.module.css
-        │   │   ├── student_nav.module.css
-        │   │   └── toast.module.css
-        │   └── pages/
-        │       ├── editSubject.module.css
-        │       ├── home.module.css
-        │       ├── login.module.css
-        │       ├── register.module.css
-        │       ├── studentDash.module.css
-        │       ├── timetable.module.css
-        │       └── subject.module.css
-        └── assets/
-```
+## Run with Docker Compose
 
----
+1. Copy `backend/.env.example` to `backend/.env`.
+2. Replace `SECRET_KEY` with a long random value. Configure `BREVO_API_KEY` to enable email OTP delivery.
+3. Start the services from the repository root:
 
-## 🧱 Architecture diagram
-
-```mermaid
-flowchart TD
-    U["User / Student"] --> B["Browser"]
-
-    B --> FE["React + Vite Frontend"]
-    FE --> R["React Router Pages"]
-    REG["Register"] --> OTP
-
-    R --> H["Home"]
-    R --> REG["Register"]
-    R --> L["Login"]
-    R --> D["Student Dashboard"]
-    R --> S["Subject CRUD Page"]
-    R --> T["AI Timetable Page"]
-
-    FE --> API["FastAPI Backend"]
-
-    API --> AUTH["Auth Routes"]
-    API --> OTP["OTP Routes"]
-    API --> SUB["Subject Routes"]
-    API --> DASH["Student Dashboard Route"]
-    API --> AI["AI Timetable Route"]
-
-    AUTH --> JWT["JWT Access + Refresh Tokens"]
-    OTP --> REDIS["Redis OTP Store"]
-    OTP --> EMAIL["Email Service"]
-    OTP --> L["Login"]
-
-    SUB --> DB["PostgreSQL Database"]
-    DASH --> DB
-    AUTH --> DB
-    AI --> DB
-
-    AI --> NVIDIA["NVIDIA OpenAI-Compatible API"]
-    NVIDIA --> AI
-
-    DB --> USERS["users"]
-    DB --> SUBJECTS["subjects"]
-    DB --> AITABLE["ai_table"]
-    DB --> TOPICS["syllabus_topics"]
-    DB --> PLANS["study_plans"]
-    DB --> PROGRESS["progress"]
-
-    DOCKER["Docker Compose"] --> FE
-    DOCKER --> API
-    DOCKER --> DB
-    DOCKER --> REDIS
-
-    CI["GitHub Actions + Dependabot"] --> REPO["GitHub Repository"]
-```
-
----
-
-## 🗄️ Database Schema
-
-### Users
-- `id`
-- `username`
-- `email`
-- `password_hash`
-- `full_name`
-- `created_at`
-
-### Subjects
-- `id`
-- `user_id`
-- `subject_name`
-- `exam_date`
-- `difficulty`
-- `created_at`
-
-### Syllabus Topics
-- `id`
-- `subject_id`
-- `topic_name`
-- `priority_level`
-- `estimated_hours`
-- `is_completed`
-
-### Study Plans
-- `id`
-- `user_id`
-- `title`
-- `start_date`
-- `end_date`
-- `created_at`
-
-### Study Sessions
-- `id`
-- `study_plan_id`
-- `topic_id`
-- `study_date`
-- `duration_minutes`
-- `status`
-
-### Additional Tables
-- `important_questions`
-- `resources`
-
----
-
-## 🚀 Getting Started
-
-## Option 1: Local Development
-
-### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- PostgreSQL
-- pip
-- npm
-- Docker & Docker Compose (optional, recommended)
-
-### Backend Setup
-
-1. Open a terminal in `backend`
-   ```bash
-   cd backend
-   ```
-2. Create a virtual environment
-   ```bash
-   python -m venv .venv
-   ```
-3. Activate the environment
-   - Windows:
-     ```bash
-     .venv\Scripts\activate
-     ```
-   - macOS/Linux:
-     ```bash
-     source .venv/bin/activate
-     ```
-4. Install dependencies
-   ```bash
-   pip install -r requirements.txt
-   ```
-5. Configure `.env` with your database credentials
-   ```ini
-   SQL_URL=postgresql+psycopg://postgres:password@localhost:5432/studyflow
-   ```
-6. Initialize the database
-   ```bash
-   python -m src.init_db
-   ```
-7. Start Redis (optional but required for OTP)
-   ```bash
-   docker run -d --name redis -p 6379:6379 redis
-   ```
-8. Run the backend
-   ```bash
-   uvicorn app:app --reload
-   ```
-
-### Frontend Setup
-
-1. Open a terminal in `FrontEnd`
-   ```bash
-   cd FrontEnd
-   ```
-2. Install dependencies
-   ```bash
-   npm install
-   ```
-3. Run the development server
-   ```bash
-   npm run dev
-   ```
-4. Open the app at `http://localhost:5173`
-
----
-
-## Option 2: 🐳 Docker Setup (Recommended)
-
-### Docker Environment Variables
-
-Update your `.env` file for Docker:
-
-```ini
-SQL_URL=postgresql+psycopg://postgres:password@localhost:5432/studyflow
-```
-
-### Docker Container Setup
-
-This repository now includes Docker support for the backend and frontend, plus a `docker-compose.yml` file to run services together.
-
-1. Start services with Docker Compose
    ```bash
    docker compose up --build
    ```
-2. Stop services
+
+4. Create the database tables:
+
    ```bash
-   docker compose down
+   docker compose exec backend python -m src.init_db
    ```
 
+5. Open the frontend at `http://localhost:5173`. The API is at `http://localhost:8000`; interactive API documentation is at `http://localhost:8000/docs`.
 
-### Initialize Database
+The Docker environment file uses the internal service names `postgresql` and `redis`. If you run the API directly on your computer, change `SQL_URL` to use `localhost:5433` and `REDIS_URL` to `redis://localhost:6379/0`.
 
-After containers start:
+## Health checks
 
-```bash
-docker compose exec backend python -m src.init_db
-```
+- `GET /health/live` returns `{"status":"alive"}` while the API process is running.
+- `GET /health/ready` returns the status of PostgreSQL and Redis. It responds with `200` when both are reachable and `503` otherwise.
 
-### Services
+## Repository structure
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- PostgreSQL: localhost:5433
-- Redis: localhost:6379
+- `FrontEnd/` — React/Vite client
+- `backend/` — FastAPI application and API routes
+- `docker-compose.yml` — frontend, API, PostgreSQL, and Redis services
 
----
+## Attribution
 
-## 📡 API Endpoints
-
-### Health Check
-- `GET /`
-- Response: `{"hello":"world"}`
-
-### Subject Endpoints
-- `GET /student/{user_id}/subjects/{subject_id}`
-  - Returns a single subject by user and subject id
-  - Requires `Authorization: Bearer <token>`
-- `PUT /student/{user_id}/subjects/{subject_id}`
-  - Updates subject data for the authenticated user
-  - Requires `Authorization: Bearer <token>`
-
-### Register User
-- `POST /users`
-- Request JSON:
-  ```json
-  {
-    "username": "string",
-    "email": "user@example.com",
-    "password": "string"
-  }
-  ```
-
-### Login
-- `POST /login`
-- Request body: `application/x-www-form-urlencoded`
-  - `username`
-  - `password`
-- Response JSON:
-  ```json
-  {
-    "id": 1,
-    "username": "string",
-    "access_token": "<token>",
-    "token_type": "bearer"
-  }
-  ```
-
-### Request OTP
-- `POST /request-otp`
-- Request JSON:
-  ```json
-  {
-    "email": "user@example.com"
-  }
-  ```
-
-### Verify OTP
-- `POST /verify-otp`
-- Request JSON:
-  ```json
-  {
-    "email": "user@example.com",
-    "otp": "123456"
-  }
-  ```
-
-### Student Dashboard
-- `GET /student/{user_id}`
-- Requires `Authorization: Bearer <access_token>`
-- Response JSON:
-  ```json
-  {
-    "id": 1,
-    "username": "string"
-  }
-  ```
-
-### Subject Endpoints
-- `GET /student/{user_id}/subjects`
-- `POST /student/{user_id}/subjects`
-- `PUT /student/{user_id}/subjects/{subject_id}`
-- `DELETE /student/{user_id}/subjects/{subject_id}`
-
-### Topic Endpoints
-- `POST /subjects/{subject_id}/topics`
-- `GET /subjects/{subject_id}/topics`
-- `GET /subjects/{subject_id}/topics/{topic_id}`
-- `PUT /subjects/{subject_id}/topics/{topic_id}`
-- `DELETE /subjects/{subject_id}/topics/{topic_id}`
-
-### AI Table Creation Endpoints
-- `POST /student/{user_id}/subjects/generate-table`
-- `GET /student/{user_id}/time-table`
-- Response JSON:
-  ```json
-  {
-    "timetable": [
-      {
-        "date": "2026-06-25",
-        "subject": "Python",
-        "task": "Study loops",
-        "hours": 2
-      }
-    ]
-  }
-  ```
----
-
-## 🛠️ Technology Stack
-
-### Backend
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- bcrypt
-- PostgreSQL(via psycorg)
-- redis
-- uvicorn
-
-### Frontend
-- React 19
-- Vite
-- Tailwind CSS
-- React Router DOM
-- ESLint
-
----
-
-## ✅ Features
-
-- User registration with OTP verification
-- Login with JWT authentication
-- Protected student dashboard endpoint
-- Subject creation and retrieval APIs
-- React landing page, auth pages, and dashboard UI
-- Toast notifications and sidebar navigation
-- Tailwind CSS styling
-- AI-genarated study Timetable 
-
-## 🔄 In Progress
-
-- Subject management UI polish
-- Study plan scheduling UI
-- Progress tracking UI
-
-## 🔔 Recent changes
-
-- Updated `FrontEnd/src/pages/dashboard/Subject.jsx` — changes to the Subject dashboard component.
-- Updated `FrontEnd/src/styles/pages/subject.module.css` — corresponding style updates for the Subject page.
-- Updated `.github/workflows/docker-ci.yml` — CI workflow for Docker was added/modified.
-
-## 🚀 Future Enhancements
-
-- Password reset
-- Study schedule calendar
-- Topic priority visualization
-- Progress analytics
-
----
-
-## 📚 Usage Examples
-
-Register a new user:
-
-```bash
-curl -X POST "http://localhost:8000/users" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "john_doe",
-    "email": "john@example.com",
-    "password": "secure_password123"
-  }'
-```
-
-Login:
-
-```bash
-curl -X POST "http://localhost:8000/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=john_doe&password=secure_password123"
-```
-
-Get student dashboard:
-
-```bash
-curl -X GET "http://localhost:8000/student/1" \
-  -H "Authorization: Bearer <access_token>"
-```
-
----
-
-## 📄 License
-
-MIT License
-
----
-
-**Last Updated:** 30 June 2026
+This fork builds on work by [Shreyas](https://github.com/shreyas5080) and other contributors. Upstream code remains covered by the original MIT License. Changes made in this fork are documented above.
